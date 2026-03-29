@@ -5,9 +5,9 @@ import {
   BarChart3, Menu, HeartCrack, PlayCircle, Loader2, Award, 
   TrendingUp, LayoutDashboard, PieChart as PieChartIcon, Briefcase, Zap, 
   MessageCircle, Heart, Clock, Users, Activity, MapPin, 
-  Smartphone, Languages, Globe, Info, History
+  Smartphone, Languages, Globe, Info, History, BadgeCheck, Sparkles
 } from 'lucide-react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatNum, formatTimeLatency, langMap } from '../../lib/utils.js';
 import { useStore } from '../../store/useStore';
 
@@ -61,9 +61,6 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
     { name: 'Image', value: counts.image, color: '#1D9BF0' }, 
     { name: 'Text', value: counts.text, color: isDarkMode ? '#475569' : '#cbd5e1' } 
   ].filter(d => d.value > 0);
-
-  const sourceData = analytics.topSources.map(([name, count]) => ({ name, count }));
-  const langData = analytics.topLangs.map(([lang, count]) => ({ name: langMap[lang] || lang.toUpperCase(), count }));
 
   return (
     <div className="p-4 sm:p-6 md:p-8 flex-1 w-full max-w-7xl mx-auto space-y-6">
@@ -149,6 +146,7 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate flex items-center gap-1">
                        {tweet.user?.name || tweet.name} 
+                       {tweet.user?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                        <span className="text-slate-500 font-normal">@{handle}</span>
                     </div>
                     <div className="text-xs text-slate-600 dark:text-slate-400 truncate mt-0.5">{text}</div>
@@ -173,7 +171,10 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
                 <div className="w-6 text-center text-sm font-bold text-slate-400 shrink-0">{i + 1}</div>
                 <img src={data.avatar} alt={handle} className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 shrink-0" onError={(e) => { e.target.src = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png'; }} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate">{data.name}</div>
+                  <div className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate flex items-center gap-1">
+                    {data.name}
+                    {data.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
+                  </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate">@{handle}</div>
                 </div>
                 <div className="bg-brand-blue/20 text-brand-blue text-sm font-bold px-3 py-1 rounded-full shrink-0">
@@ -187,57 +188,80 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
       </div>
 
       {/* ROW 2: Overview & Content Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Media Type Analysis */}
-        <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
+        <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:col-span-2">
           <h3 className="text-lg font-bold flex items-center gap-2 mb-6 text-slate-900 dark:text-slate-50">
             <PieChartIcon className="w-5 h-5 text-purple-500"/> Media Type Analysis
           </h3>
-          <div className="flex-1 flex flex-col justify-center items-center">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                  {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-3 gap-2 w-full mt-4 text-center">
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 py-2 rounded-xl border border-indigo-100 dark:border-indigo-800/50 flex flex-col items-center justify-center">
+          <div className="flex-1 flex flex-col md:flex-row justify-center items-center gap-6">
+            <div className="w-full md:w-1/2 h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-3 md:grid-cols-1 gap-2 w-full md:w-1/2 text-center md:text-left">
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800/50 flex flex-col items-center md:items-start justify-center">
                 <div className="text-lg font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                    {formatNum(counts.video)} <span className="text-xs font-medium opacity-70">({Math.round((counts.video / Math.max(1, counts.all)) * 100)}%)</span>
                 </div>
                 <div className="text-[10px] font-medium text-indigo-800 dark:text-indigo-300 uppercase mt-0.5">Video</div>
               </div>
-              <div className="bg-brand-blue/10 py-2 rounded-xl border border-brand-blue/20 flex flex-col items-center justify-center">
+              <div className="bg-brand-blue/10 p-3 rounded-xl border border-brand-blue/20 flex flex-col items-center md:items-start justify-center">
                 <div className="text-lg font-bold text-brand-blue flex items-center gap-1.5">
                    {formatNum(counts.image)} <span className="text-xs font-medium opacity-70">({Math.round((counts.image / Math.max(1, counts.all)) * 100)}%)</span>
                 </div>
                 <div className="text-[10px] font-medium text-brand-blue uppercase mt-0.5">Image</div>
               </div>
-              <div className="bg-slate-50 dark:bg-slate-800 py-2 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center">
+              <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center md:items-start justify-center">
                 <div className="text-lg font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
                    {formatNum(counts.text)} <span className="text-xs font-medium opacity-70">({Math.round((counts.text / Math.max(1, counts.all)) * 100)}%)</span>
                 </div>
-                <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase mt-0.5">Text</div>
+                <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase mt-0.5">Text Only</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Professional Categories */}
+        {/* Creator Verification Status */}
         <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full min-h-[250px]">
           <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-50">
-            <Briefcase className="w-5 h-5 text-indigo-500"/> Prof. Categories
+            <BadgeCheck className="w-5 h-5 text-blue-500"/> Creator Verification
           </h3>
-          <div className="flex-1 flex flex-wrap gap-2 content-start">
-            {analytics.topCategories.length > 0 ? analytics.topCategories.map(([cat, count]) => (
-              <div key={cat} className="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-lg h-fit">
-                <span className="font-medium text-sm">{cat}</span>
-                <span className="text-[10px] bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 px-1.5 py-0.5 rounded-md font-bold">{count}</span>
-              </div>
-            )) : <div className="w-full h-full flex items-center justify-center"><EmptyMetadataState /></div>}
+          <div className="flex-1 flex flex-col justify-center">
+             {analytics.verificationStats.verified === 0 && analytics.verificationStats.unverified === 0 ? (
+                <EmptyMetadataState />
+             ) : (
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="font-bold text-blue-500 dark:text-blue-400 flex items-center gap-1">Verified</span>
+                      <span className="text-slate-500 font-bold">{Math.round((analytics.verificationStats.verified / Math.max(1, analytics.stats.totalUsersAnalyzed)) * 100)}%</span>
+                    </div>
+                    <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(analytics.verificationStats.verified / Math.max(1, analytics.stats.totalUsersAnalyzed)) * 100}%` }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">Standard</span>
+                      <span className="text-slate-500 font-bold">{Math.round((analytics.verificationStats.unverified / Math.max(1, analytics.stats.totalUsersAnalyzed)) * 100)}%</span>
+                    </div>
+                    <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-slate-400 dark:bg-slate-600 rounded-full" style={{ width: `${(analytics.verificationStats.unverified / Math.max(1, analytics.stats.totalUsersAnalyzed)) * 100}%` }}></div>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Analysis based on <span className="font-bold">{formatNum(analytics.stats.totalUsersAnalyzed)}</span> unique accounts in your library.</p>
+                  </div>
+                </div>
+             )}
           </div>
         </div>
 
@@ -308,7 +332,9 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
 
       <div className="my-8 flex items-center gap-4">
         <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deep Metadata Required Below</span>
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+           <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Deep Metadata Required Below
+        </span>
         <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
       </div>
 
@@ -390,10 +416,10 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
       </div>
 
       {/* ROW 5: Sources & Languages (Bar Charts) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-12">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pb-12">
         
         {/* Active Locations */}
-        <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full min-h-[250px]">
+        <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full min-h-[250px] md:col-span-2">
           <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-50">
             <MapPin className="w-5 h-5 text-emerald-500"/> Active Locations
           </h3>
@@ -420,29 +446,6 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
           </div>
         </div>
 
-        {/* Creator Devices */}
-        <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-50">
-            <Smartphone className="w-5 h-5 text-cyan-500"/> Creator Devices
-          </h3>
-          <div className="space-y-4 mt-6">
-            {analytics.topSources.length > 0 ? analytics.topSources.map(([source, count]) => {
-              const pct = Math.round((count / Math.max(1, counts.all)) * 100);
-              return (
-                <div key={source}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-slate-700 dark:text-slate-300 truncate pr-4">{source}</span>
-                    <span className="text-slate-500 font-bold shrink-0">{pct}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${pct}%` }}></div>
-                  </div>
-                </div>
-              );
-            }) : <div className="text-slate-400 dark:text-slate-500 text-sm mt-4 ml-4">No device data found.</div>}
-          </div>
-        </div>
-
         {/* Profile Languages */}
         <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
           <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-50" title="The native language set on the creator's profile">
@@ -450,7 +453,7 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
           </h3>
           <div className="space-y-4 mt-6">
             {analytics.topProfileLangs && analytics.topProfileLangs.length > 0 ? analytics.topProfileLangs.map(([lang, count]) => {
-              const pct = Math.round((count / Math.max(1, counts.all)) * 100);
+              const pct = Math.round((count / Math.max(1, analytics.stats.totalUsersAnalyzed)) * 100);
               return (
                 <div key={lang}>
                   <div className="flex justify-between text-sm mb-1">
@@ -463,6 +466,25 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
                 </div>
               );
             }) : <div className="w-full h-full flex items-center justify-center"><EmptyMetadataState /></div>}
+          </div>
+        </div>
+
+        {/* Professional Categories */}
+        <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full min-h-[250px]">
+          <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-50">
+            <Briefcase className="w-5 h-5 text-indigo-500"/> Prof. Categories
+          </h3>
+          <div className="flex-1 flex flex-col justify-center">
+            {analytics.topCategories.length > 0 ? (
+               <div className="flex flex-wrap gap-2 content-start">
+                  {analytics.topCategories.map(([cat, count]) => (
+                    <div key={cat} className="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-lg h-fit">
+                      <span className="font-medium text-sm">{cat}</span>
+                      <span className="text-[10px] bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 px-1.5 py-0.5 rounded-md font-bold">{count}</span>
+                    </div>
+                  ))}
+               </div>
+            ) : <EmptyMetadataState />}
           </div>
         </div>
 

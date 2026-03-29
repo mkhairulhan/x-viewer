@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, Circle, HeartCrack, Layers, StickyNote, 
   Edit2, Calendar, MessageCircle, Repeat2, Heart,
-  Bookmark, Quote, TrendingUp, Code
+  Bookmark, Quote, TrendingUp, Code, Sparkles, FileText, BadgeCheck
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
@@ -115,6 +115,7 @@ export default function TweetCard({ tweet, isModal = false }) {
               <div className="flex items-center gap-2 mb-1">
                 <img src={profileImg} alt="" className="w-6 h-6 rounded-full border border-white/30 shrink-0" />
                 <span className="font-bold text-white text-sm truncate">{tweet.name || tweet.user?.name}</span>
+                {tweet.user?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
               </div>
               <p className="text-white/80 text-xs line-clamp-2">{tweet.full_text || tweet.text}</p>
            </div>
@@ -156,6 +157,7 @@ export default function TweetCard({ tweet, isModal = false }) {
           <div className="flex items-center gap-2 mb-2">
             <img src={profileImg} alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full shrink-0" />
             <span className="font-bold text-gray-900 dark:text-gray-100 text-xs sm:text-sm truncate">{tweet.name || tweet.user?.name}</span>
+            {tweet.user?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
           </div>
           <p className="text-gray-800 dark:text-gray-300 text-xs sm:text-sm line-clamp-3 sm:line-clamp-4 flex-1 mb-2 sm:mb-3">{tweet.full_text || tweet.text}</p>
         </div>
@@ -179,6 +181,7 @@ export default function TweetCard({ tweet, isModal = false }) {
         <div className="flex-1 min-w-0 pointer-events-none">
           <div className="flex items-center gap-1.5 sm:gap-2 truncate mb-0.5 sm:mb-1">
             <span className="font-bold text-gray-900 dark:text-gray-100 text-xs sm:text-sm truncate">{tweet.name || tweet.user?.name}</span>
+            {tweet.user?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
             <span className="text-gray-500 text-[10px] sm:text-xs hidden sm:inline truncate">@{tweet.screen_name || tweet.user?.screen_name}</span>
             {note && <StickyNote className="w-3 h-3 text-yellow-500 shrink-0 ml-1" />}
           </div>
@@ -199,7 +202,10 @@ export default function TweetCard({ tweet, isModal = false }) {
           <img src={profileImg} alt="" className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-gray-100 dark:border-gray-600 shrink-0" />
           <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0 sm:gap-4 pr-6 sm:pr-8">
             <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-1.5 truncate">
-              <span className="font-bold text-gray-900 dark:text-gray-100 text-[15px] sm:text-base truncate">{tweet.name || tweet.user?.name}</span>
+              <div className="flex items-center gap-1 truncate">
+                <span className="font-bold text-gray-900 dark:text-gray-100 text-[15px] sm:text-base truncate">{tweet.name || tweet.user?.name}</span>
+                {tweet.user?.is_verified && <BadgeCheck className="w-4 h-4 text-blue-500 shrink-0" />}
+              </div>
               <span className="text-gray-500 text-xs sm:text-sm truncate">@{tweet.screen_name || tweet.user?.screen_name}</span>
             </div>
             
@@ -207,9 +213,18 @@ export default function TweetCard({ tweet, isModal = false }) {
                <a href={tweet.url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-500 text-[11px] sm:text-xs flex items-center gap-1 transition-colors pointer-events-auto" onClick={(e) => isSelectionMode && !isModal && e.preventDefault()}>
                  <Calendar className="w-3 h-3" />{formattedDate}
                </a>
+               
+               {/* Graceful Degradation: Richness Badge */}
+               <div 
+                 className="flex items-center gap-1 text-[11px] sm:text-xs text-gray-400 cursor-help pointer-events-auto"
+                 title={tweet._is_rich ? "Rich Metadata (Contains deep creator & engagement analytics)" : "Basic Metadata (Lacks deep profile analytics)"}
+               >
+                 {tweet._is_rich ? <Sparkles className="w-3.5 h-3.5 text-amber-500" /> : <FileText className="w-3.5 h-3.5 text-gray-400 opacity-60" />}
+               </div>
+
                {/* Developer Mode Toggle */}
                {isModal && (
-                 <button onClick={(e) => { e.stopPropagation(); setShowRawJson(!showRawJson); }} className="ml-2 text-gray-400 hover:text-blue-500 pointer-events-auto transition-colors" title="View Raw JSON Metadata">
+                 <button onClick={(e) => { e.stopPropagation(); setShowRawJson(!showRawJson); }} className="ml-1 text-gray-400 hover:text-blue-500 pointer-events-auto transition-colors" title="View Raw JSON Metadata">
                      <Code className="w-4 h-4" />
                  </button>
                )}
@@ -319,6 +334,12 @@ export default function TweetCard({ tweet, isModal = false }) {
                        || userBase.profile_image_url
                        || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png';
           
+          const qVerified = userBase.is_verified || 
+                            userBase.core?.user_results?.result?.is_blue_verified || 
+                            userBase.legacy?.verified || 
+                            userBase.verification_info?.is_blue_verified || 
+                            false;
+
           const hasQMedia = qMedia.length > 0;
           
           return (
@@ -332,6 +353,7 @@ export default function TweetCard({ tweet, isModal = false }) {
                 <div className="flex items-center gap-2 min-w-0">
                   <img src={qAvatar} alt="Quoted user" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-gray-100 dark:border-gray-600 shrink-0" onError={(e) => { e.target.src = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png'; }} />
                   <span className="font-bold text-[13px] sm:text-sm text-gray-800 dark:text-gray-200 truncate">{qName}</span>
+                  {qVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                   <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm truncate">@{qHandle}</span>
                 </div>
               </div>

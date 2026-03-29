@@ -26,6 +26,14 @@ export const normalizeTweet = (raw) => {
     const coreUser = unwrapped.core?.user_results?.result || unwrapped.user || {};
     const userLegacy = coreUser.legacy || coreUser;
 
+    // Graceful Degradation Heuristic: Determine if this is a "Rich" metadata export
+    const isRich = Boolean(
+        raw.metadata?.core || 
+        unwrapped.core || 
+        unwrapped.source || 
+        (userLegacy && userLegacy.followers_count !== undefined)
+    );
+
     // 1. Media Extraction Pipeline
     let media = [];
     if (Array.isArray(unwrapped.media)) media = unwrapped.media;
@@ -43,10 +51,12 @@ export const normalizeTweet = (raw) => {
         uBase?.ext_is_blue_verified || 
         uBase?.verification_info?.is_blue_verified || 
         uBase?.core?.user_results?.result?.is_blue_verified || 
+        uBase?.core?.user_results?.result?.verification_info?.is_blue_verified ||
         uRoot?.verified ||
         uRoot?.is_blue_verified ||
         uMeta?.core?.user_results?.result?.is_blue_verified ||
         uMeta?.core?.user_results?.result?.legacy?.verified ||
+        uMeta?.core?.user_results?.result?.verification_info?.is_blue_verified ||
         false
     );
 
@@ -133,9 +143,31 @@ export const normalizeTweet = (raw) => {
         sourceName = sourceMatch ? sourceMatch[1] : (sourceHtml.includes('Twitter') ? sourceHtml : 'Unknown');
     }
 
+    // Advanced Data Extraction: Professional Category (Safely handle object vs array)
+    let profCategory = null;
+    const proData = coreUser.professional || raw.metadata?.core?.user_results?.result?.professional;
+    if (proData) {
+        if (Array.isArray(proData.category) && proData.category.length > 0) {
+            profCategory = proData.category[0].name;
+        } else if (proData.category?.name) {
+            profCategory = proData.category.name;
+        } else if (proData.professional_type) {
+            profCategory = proData.professional_type;
+        }
+    }
+
+    // Advanced Data Extraction: Profile Language
+    const profileLanguage = coreUser.profile_description_language || 
+                            userLegacy.profile_description_language || 
+                            raw.metadata?.core?.user_results?.result?.legacy?.profile_description_language || 
+                            raw.metadata?.core?.user_results?.result?.profile_description_language || null;
+
     // 4. Return The Universal Schema Object
     return {
         _isNormalized: true,
+        _is_rich: isRich, 
+        _last_updated: Date.now(), 
+        
         id: id,
         created_at: legacy.created_at || unwrapped.created_at || raw.created_at || raw.metadata?.core?.user_results?.result?.legacy?.created_at || new Date().toISOString(),
         full_text: text,
@@ -156,14 +188,13 @@ export const normalizeTweet = (raw) => {
             profile_image_url: userLegacy.profile_image_url_https || userLegacy.profile_image_url || unwrapped.profile_image_url || raw.profile_image_url || raw.metadata?.core?.user_results?.result?.legacy?.profile_image_url_https || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png',
             is_verified: checkVerified(coreUser, userLegacy, unwrapped, raw.metadata),
             
-            // Extended Analytics Dragnet (Checks root, unwrapped, and deep `metadata.core` wrappers)
             location: coreUser.location?.location || userLegacy.location || unwrapped.location || raw.location || raw.metadata?.core?.user_results?.result?.location?.location || raw.metadata?.core?.user_results?.result?.legacy?.location || "",
-            profile_language: coreUser.profile_description_language || userLegacy.profile_description_language || raw.metadata?.core?.user_results?.result?.profile_description_language || null,
+            profile_language: profileLanguage,
             followers_count: parseInt(userLegacy.followers_count || unwrapped.followers_count || unwrapped.user_followers_count || raw.metadata?.core?.user_results?.result?.legacy?.followers_count || 0) || 0,
             friends_count: Math.max(1, parseInt(userLegacy.friends_count || unwrapped.friends_count || unwrapped.user_friends_count || raw.metadata?.core?.user_results?.result?.legacy?.friends_count || 1) || 1), 
             statuses_count: parseInt(userLegacy.statuses_count || unwrapped.statuses_count || unwrapped.user_statuses_count || raw.metadata?.core?.user_results?.result?.legacy?.statuses_count || 0) || 0,
             created_at: userLegacy.created_at || unwrapped.user_created_at || raw.user_created_at || raw.metadata?.core?.user_results?.result?.core?.created_at || raw.metadata?.core?.user_results?.result?.legacy?.created_at || null,
-            professional_category: coreUser.professional?.category?.name || coreUser.professional?.professional_type || unwrapped.professional_category || raw.professional_category || raw.metadata?.core?.user_results?.result?.professional?.category?.name || null
+            professional_category: profCategory
         },
         
         metrics: {
