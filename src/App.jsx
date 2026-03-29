@@ -16,6 +16,7 @@ import Insights from './components/dashboard/Insights';
 import Settings from './components/dashboard/Settings';
 import KeyboardShortcuts from './components/layout/KeyboardShortcuts';
 import { useStore } from './store/useStore';
+import { Analytics } from '@vercel/analytics/react';
 
 export default function App() {
   const {
@@ -737,6 +738,7 @@ export default function App() {
         )}
 
         <KeyboardShortcuts />
+        <Analytics />
 
       </div>
     </div>
