@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, Circle, HeartCrack, Layers, StickyNote, 
   Edit2, Calendar, MessageCircle, Repeat2, Heart,
-  Bookmark, Quote, TrendingUp, Code
+  Bookmark, Quote, TrendingUp, Code, Sparkles, FileText
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
@@ -207,9 +207,18 @@ export default function TweetCard({ tweet, isModal = false }) {
                <a href={tweet.url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-500 text-[11px] sm:text-xs flex items-center gap-1 transition-colors pointer-events-auto" onClick={(e) => isSelectionMode && !isModal && e.preventDefault()}>
                  <Calendar className="w-3 h-3" />{formattedDate}
                </a>
+               
+               {/* Graceful Degradation: Richness Badge */}
+               <div 
+                 className="flex items-center gap-1 text-[11px] sm:text-xs text-gray-400 cursor-help pointer-events-auto"
+                 title={tweet._is_rich ? "Rich Metadata (Contains deep creator & engagement analytics)" : "Basic Metadata (Lacks deep profile analytics)"}
+               >
+                 {tweet._is_rich ? <Sparkles className="w-3.5 h-3.5 text-amber-500" /> : <FileText className="w-3.5 h-3.5 text-gray-400 opacity-60" />}
+               </div>
+
                {/* Developer Mode Toggle */}
                {isModal && (
-                 <button onClick={(e) => { e.stopPropagation(); setShowRawJson(!showRawJson); }} className="ml-2 text-gray-400 hover:text-blue-500 pointer-events-auto transition-colors" title="View Raw JSON Metadata">
+                 <button onClick={(e) => { e.stopPropagation(); setShowRawJson(!showRawJson); }} className="ml-1 text-gray-400 hover:text-blue-500 pointer-events-auto transition-colors" title="View Raw JSON Metadata">
                      <Code className="w-4 h-4" />
                  </button>
                )}

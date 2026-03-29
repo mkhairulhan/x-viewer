@@ -26,6 +26,15 @@ export const normalizeTweet = (raw) => {
     const coreUser = unwrapped.core?.user_results?.result || unwrapped.user || {};
     const userLegacy = coreUser.legacy || coreUser;
 
+    // Graceful Degradation Heuristic: Determine if this is a "Rich" metadata export
+    // Rich exports typically have deep core wrappers, device sources, or deep follower metrics.
+    const isRich = Boolean(
+        raw.metadata?.core || 
+        unwrapped.core || 
+        unwrapped.source || 
+        (userLegacy && userLegacy.followers_count !== undefined)
+    );
+
     // 1. Media Extraction Pipeline
     let media = [];
     if (Array.isArray(unwrapped.media)) media = unwrapped.media;
@@ -136,6 +145,9 @@ export const normalizeTweet = (raw) => {
     // 4. Return The Universal Schema Object
     return {
         _isNormalized: true,
+        _is_rich: isRich, // Indicates if this tweet has deep metadata
+        _last_updated: Date.now(), // Helps the worker during upsert merges
+        
         id: id,
         created_at: legacy.created_at || unwrapped.created_at || raw.created_at || raw.metadata?.core?.user_results?.result?.legacy?.created_at || new Date().toISOString(),
         full_text: text,
