@@ -9,34 +9,31 @@ import {
 import { useStore } from '../../store/useStore';
 
 export default function TweetCard({ tweet, isModal = false }) {
+  const tweetId = tweet.id || tweet.id_str || tweet.rest_id;
+
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
 
-  // Reconnect the card to the global store (Fixes Layout, Clicking, and View Modes)
+  // Core Store Actions & States
   const viewMode = useStore(state => state.viewMode);
   const isSelectionMode = useStore(state => state.isSelectionMode);
-  const selectedIds = useStore(state => state.selectedIds);
-  const brokenMediaIds = useStore(state => state.brokenMediaIds);
-  const notes = useStore(state => state.notes);
-  
   const setSelectedTweet = useStore(state => state.setSelectedTweet);
   const toggleSelection = useStore(state => state.toggleSelection);
-  const setNotes = useStore(state => state.setNotes);
   const setLightbox = useStore(state => state.setLightbox);
+  const saveNoteAction = useStore(state => state.handleSaveNote);
 
-  const tweetId = tweet.id || tweet.id_str || tweet.rest_id;
-  const isSelected = selectedIds.has(tweetId);
-  const isBroken = brokenMediaIds.has(tweetId);
-  const note = notes[tweetId];
+  // HIGH PERFORMANCE SELECTORS: 
+  // By returning primitives tied to the ID instead of global objects/sets, 
+  // we completely eliminate cascading O(N) re-renders across the feed grid.
+  const isSelected = useStore(state => state.selectedIds.has(tweetId));
+  const isBroken = useStore(state => state.brokenMediaIds.has(tweetId));
+  const note = useStore(state => state.notes[tweetId]);
 
   const [localNoteText, setLocalNoteText] = useState(note || "");
 
   useEffect(() => {
     setLocalNoteText(note || "");
   }, [note]);
-
-  const coreUser = tweet.core?.user_results?.result || tweet.user || {};
-  const userLegacy = coreUser.legacy || coreUser;
 
   const formattedDate = new Date(tweet.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const hasMedia = tweet.media && tweet.media.length > 0;
@@ -71,14 +68,8 @@ export default function TweetCard({ tweet, isModal = false }) {
   };
 
   const handleSaveNote = () => {
-     const nextNotes = { ...notes, [tweetId]: localNoteText };
-     setNotes(nextNotes);
-     
-     // Safely persist to IndexedDB
-     import('../../lib/db').then(module => {
-        if (module.saveToDB) module.saveToDB('bookmark_notes', nextNotes);
-     }).catch(() => {});
-     
+     // Uses the optimized global store action to handle DB persisting automatically
+     saveNoteAction(tweetId, localNoteText);
      setIsEditingNote(false);
   };
 
@@ -450,7 +441,7 @@ export default function TweetCard({ tweet, isModal = false }) {
           )}
         </div>
 
-        {/* Engagement Metrics (Guarded to prevent Virtuoso Height bugs) */}
+        {/* Engagement Metrics */}
         <div className="flex items-center justify-between text-gray-400 dark:text-gray-500 text-xs sm:text-sm mt-3 pt-3 w-full pointer-events-none">
           <div className="flex flex-wrap items-center gap-3 sm:gap-6 w-full">
             <div className="flex items-center gap-1.5" title="Replies"><MessageCircle className="w-4 h-4" /><span>{formatNum(tweet.metrics?.reply_count ?? tweet.reply_count ?? 0)}</span></div>
