@@ -22,9 +22,7 @@ export default function TweetCard({ tweet, isModal = false }) {
   const setLightbox = useStore(state => state.setLightbox);
   const saveNoteAction = useStore(state => state.handleSaveNote);
 
-  // HIGH PERFORMANCE SELECTORS: 
-  // By returning primitives tied to the ID instead of global objects/sets, 
-  // we completely eliminate cascading O(N) re-renders across the feed grid.
+  // HIGH PERFORMANCE SELECTORS
   const isSelected = useStore(state => state.selectedIds.has(tweetId));
   const isBroken = useStore(state => state.brokenMediaIds.has(tweetId));
   const note = useStore(state => state.notes[tweetId]);
@@ -68,9 +66,21 @@ export default function TweetCard({ tweet, isModal = false }) {
   };
 
   const handleSaveNote = () => {
-     // Uses the optimized global store action to handle DB persisting automatically
      saveNoteAction(tweetId, localNoteText);
      setIsEditingNote(false);
+  };
+
+  // Safe Image Fallback Handler - Prevents Virtuoso Thrashing & Handles Avatars Beautifully
+  const handleImageError = (e, source) => {
+     e.target.onerror = null; // Prevent infinite loops if the fallback itself fails
+     
+     if (source.includes('Avatar')) {
+        // Use standard Twitter blank silhouette for broken profiles
+        e.target.src = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png';
+     } else {
+        // Use structural SVG placeholder for missing media to preserve DOM height
+        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iIzY2NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5NZWRpYSBVbmF2YWlsYWJsZTwvdGV4dD48L3N2Zz4=';
+     }
   };
 
   let cardClasses = 'relative bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all ';
@@ -93,18 +103,18 @@ export default function TweetCard({ tweet, isModal = false }) {
     return (
       <article onClick={handleCardClick} className={`${cardClasses} rounded-2xl group w-full`}>
         <CheckboxOverlay />
-        <div className="w-full relative overflow-hidden bg-gray-100 dark:bg-gray-700">
+        <div className="w-full relative overflow-hidden bg-gray-100 dark:bg-gray-700 min-h-[150px]">
            {isBroken && <div className="absolute inset-0 bg-red-900/40 z-10 flex items-center justify-center"><HeartCrack className="w-8 h-8 text-white opacity-80" /></div>}
            <img 
               src={mediaUrl} 
               alt="Gallery media" 
               className={`w-full h-auto block object-cover transition-transform duration-500 group-hover:scale-105 ${isSelectionMode && 'pointer-events-none'}`}
               loading="lazy"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              onError={(e) => handleImageError(e, 'Gallery Media')}
            />
            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 pointer-events-none">
               <div className="flex items-center gap-2 mb-1">
-                <img src={profileImg} alt="" className="w-6 h-6 rounded-full border border-white/30 shrink-0" />
+                <img src={profileImg} alt="" className="w-6 h-6 rounded-full border border-white/30 shrink-0" onError={(e) => handleImageError(e, 'Avatar')} />
                 <span className="font-bold text-white text-sm truncate">{tweet.name || tweet.user?.name}</span>
                 {tweet.user?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
               </div>
@@ -134,8 +144,8 @@ export default function TweetCard({ tweet, isModal = false }) {
       <article onClick={handleCardClick} className={`${cardClasses} rounded-2xl flex flex-col h-full group`}>
         <CheckboxOverlay />
         {hasMedia ? (
-          <div className="h-40 sm:h-48 w-full bg-gray-100 dark:bg-gray-700 overflow-hidden relative">
-            <img src={mediaUrl} alt="" className="w-full h-full object-cover" loading="lazy" onError={(e) => { e.target.style.display = 'none'; }} />
+          <div className="h-40 sm:h-48 w-full bg-gray-100 dark:bg-gray-700 overflow-hidden relative min-h-[160px]">
+            <img src={mediaUrl} alt="" className="w-full h-full object-cover" loading="lazy" onError={(e) => handleImageError(e, 'Grid Media')} />
             {tweet.media.length > 1 && <div className="absolute top-2 left-2 bg-black/60 text-white px-1.5 py-0.5 rounded flex items-center gap-1 text-[10px] sm:text-xs font-bold z-10"><Layers className="w-3 h-3" />{tweet.media.length}</div>}
             {note && <div className="absolute bottom-2 left-2 bg-yellow-400 text-yellow-900 p-1 rounded-sm shadow z-10"><StickyNote className="w-3 h-3" /></div>}
           </div>
@@ -146,7 +156,7 @@ export default function TweetCard({ tweet, isModal = false }) {
         )}
         <div className="p-3 sm:p-4 flex flex-col flex-1 pointer-events-none">
           <div className="flex items-center gap-2 mb-2">
-            <img src={profileImg} alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full shrink-0" />
+            <img src={profileImg} alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full shrink-0" onError={(e) => handleImageError(e, 'Avatar')} />
             <span className="font-bold text-gray-900 dark:text-gray-100 text-xs sm:text-sm truncate">{tweet.name || tweet.user?.name}</span>
             {tweet.user?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
           </div>
@@ -158,15 +168,15 @@ export default function TweetCard({ tweet, isModal = false }) {
 
   if (!isModal && viewMode === 'compact') {
     return (
-      <article onClick={handleCardClick} className={`${cardClasses} rounded-xl p-2 sm:p-3 flex items-center gap-3 sm:gap-4`}>
+      <article onClick={handleCardClick} className={`${cardClasses} rounded-xl p-2 sm:p-3 flex items-center gap-3 sm:gap-4 min-h-[72px]`}>
         <CheckboxOverlay />
         {hasMedia ? (
           <div className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 rounded-lg overflow-hidden relative">
-            <img src={mediaUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+            <img src={mediaUrl} alt="" className="w-full h-full object-cover" loading="lazy" onError={(e) => handleImageError(e, 'Compact Media')} />
           </div>
         ) : (
           <div className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 rounded-lg bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
-            <img src={profileImg} alt="" className="w-6 h-6 sm:w-8 sm:h-8 rounded-full opacity-50" />
+            <img src={profileImg} alt="" className="w-6 h-6 sm:w-8 sm:h-8 rounded-full opacity-50" onError={(e) => handleImageError(e, 'Avatar')} />
           </div>
         )}
         <div className="flex-1 min-w-0 pointer-events-none">
@@ -190,7 +200,7 @@ export default function TweetCard({ tweet, isModal = false }) {
         
         {/* Header */}
         <div className="flex items-center gap-2.5 sm:gap-3 mb-3">
-          <img src={profileImg} alt="" className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-gray-100 dark:border-gray-600 shrink-0" />
+          <img src={profileImg} alt="" className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-gray-100 dark:border-gray-600 shrink-0" onError={(e) => handleImageError(e, 'Avatar')} />
           <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0 sm:gap-4 pr-6 sm:pr-8">
             <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-1.5 truncate">
               <div className="flex items-center gap-1 truncate">
@@ -230,7 +240,7 @@ export default function TweetCard({ tweet, isModal = false }) {
 
         {/* Multi-Media Grid */}
         {hasMedia && (
-          <div className={`mt-3 mb-3 rounded-xl sm:rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-black grid gap-0.5 relative ${tweet.media.length === 1 ? 'grid-cols-1' : tweet.media.length === 2 ? 'grid-cols-2 h-40 sm:h-72' : 'grid-cols-2 h-56 sm:h-96'} ${isSelectionMode && !isModal ? 'pointer-events-none' : ''}`}>
+          <div className={`mt-3 mb-3 rounded-xl sm:rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-black grid gap-0.5 relative min-h-[150px] ${tweet.media.length === 1 ? 'grid-cols-1' : tweet.media.length === 2 ? 'grid-cols-2 h-40 sm:h-72' : 'grid-cols-2 h-56 sm:h-96'} ${isSelectionMode && !isModal ? 'pointer-events-none' : ''}`}>
             {isBroken && <div className="absolute inset-0 bg-red-900/40 z-10 flex items-center justify-center pointer-events-none"><HeartCrack className="w-8 h-8 text-white opacity-80" /></div>}
             {tweet.media.map((mediaItem, index) => {
               const isVideo = mediaItem.type === 'video' || mediaItem.type === 'animated_gif';
@@ -240,14 +250,14 @@ export default function TweetCard({ tweet, isModal = false }) {
                  if(mp4Variants.length) srcUrl = mp4Variants[0].url;
               }
               const thumbUrl = mediaItem.thumbnail || mediaItem.media_url_https || mediaItem.url;
-              let containerClass = "relative flex items-center justify-center bg-gray-900 overflow-hidden w-full h-full";
+              let containerClass = "relative flex items-center justify-center bg-gray-900 overflow-hidden w-full h-full min-h-[150px]";
               let mediaClass = `w-full ${tweet.media.length === 1 ? "object-contain max-h-[400px] sm:max-h-[500px]" : "h-full object-cover"}`;
               if (tweet.media.length >= 3 && index === 0) containerClass += " row-span-2";
 
               return (
                 <div key={index} className={containerClass}>
                   {isVideo ? <video controls poster={thumbUrl} className={mediaClass} preload="none" playsInline><source src={srcUrl} type="video/mp4" /></video>
-                           : <img src={srcUrl} alt="" className={`${mediaClass} ${!(isSelectionMode && !isModal) ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} loading="lazy" onClick={(e) => { if(!(isSelectionMode && !isModal) && !isBroken) { e.stopPropagation(); handleMediaClick(tweet.media, index); }}} onError={(e) => { e.target.style.display = 'none'; }} />}
+                           : <img src={srcUrl} alt="" className={`${mediaClass} ${!(isSelectionMode && !isModal) ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} loading="lazy" onClick={(e) => { if(!(isSelectionMode && !isModal) && !isBroken) { e.stopPropagation(); handleMediaClick(tweet.media, index); }}} onError={(e) => handleImageError(e, 'Detail View Media')} />}
                 </div>
               );
             })}
@@ -342,7 +352,7 @@ export default function TweetCard({ tweet, isModal = false }) {
             >
               <div className="flex items-center justify-between gap-2 mb-0.5 sm:mb-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={qAvatar} alt="Quoted user" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-gray-100 dark:border-gray-600 shrink-0" onError={(e) => { e.target.src = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png'; }} />
+                  <img src={qAvatar} alt="Quoted user" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-gray-100 dark:border-gray-600 shrink-0" onError={(e) => handleImageError(e, 'Quote Avatar')} />
                   <span className="font-bold text-[13px] sm:text-sm text-gray-800 dark:text-gray-200 truncate">{qName}</span>
                   {qVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                   <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm truncate">@{qHandle}</span>
@@ -380,6 +390,7 @@ export default function TweetCard({ tweet, isModal = false }) {
                                   e.stopPropagation();
                                   handleMediaClick(qMedia, idx);
                                 }}
+                                onError={(e) => handleImageError(e, 'Quote Video Thumb')}
                               />
                               <div className="absolute bg-black/60 text-white px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold pointer-events-none backdrop-blur-sm">VIDEO</div>
                             </>
@@ -394,6 +405,7 @@ export default function TweetCard({ tweet, isModal = false }) {
                                 e.stopPropagation();
                                 handleMediaClick(qMedia, idx);
                               }}
+                              onError={(e) => handleImageError(e, 'Quote Image')}
                             />
                           )}
                        </div>
