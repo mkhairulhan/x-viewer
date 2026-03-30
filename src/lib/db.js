@@ -117,12 +117,16 @@ export const loadBookmarksFromDB = async () => {
       const count = await loadFromDB('bookmarks_chunk_count');
       if (!count) return [];
 
-      let allData = [];
+      // HIGH PERFORMANCE LOAD: Load all chunks simultaneously in parallel
+      const chunkPromises = [];
       for (let i = 0; i < count; i++) {
-         const chunk = await loadFromDB(`bookmarks_chunk_${i}`);
-         if (chunk) allData = allData.concat(chunk);
+         chunkPromises.push(loadFromDB(`bookmarks_chunk_${i}`));
       }
-      return allData;
+      
+      const chunks = await Promise.all(chunkPromises);
+      
+      // HIGH PERFORMANCE MERGE: flat() avoids the severe memory spike of O(N^2) looping concats
+      return chunks.filter(Boolean).flat();
    } catch (e) { 
       console.error("Error loading chunks", e); 
       return []; 

@@ -731,7 +731,16 @@ export default function App() {
                 }
                 return isVideo 
                   ? <video controls autoPlay playsInline className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()}><source src={srcUrl} type="video/mp4" /></video>
-                  : <img src={srcUrl} alt={`Media ${lightbox.index + 1}`} className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />;
+                  : <img 
+    src={srcUrl} 
+    alt={`Media ${lightbox.index + 1}`} 
+    className="max-w-full max-h-[90vh] object-contain rounded-lg" 
+    onClick={(e) => e.stopPropagation()} 
+    onError={(e) => {
+        e.target.onerror = null;
+        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iIzY2NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5NZWRpYSBVbmF2YWlsYWJsZTwvdGV4dD48L3N2Zz4=';
+    }}
+  />;
               })()}
             </div>
             {lightbox.items.length > 1 && <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white bg-white/10 px-4 py-1.5 rounded-full text-sm backdrop-blur-sm">{lightbox.index + 1} / {lightbox.items.length}</div>}
