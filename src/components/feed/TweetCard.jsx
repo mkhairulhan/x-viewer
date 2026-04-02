@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
-export default function TweetCard({ tweet, isModal = false }) {
+const TweetCard = ({ tweet, isModal = false }) => {
   const tweetId = tweet.id || tweet.id_str || tweet.rest_id;
 
   const [isEditingNote, setIsEditingNote] = useState(false);
@@ -486,3 +486,9 @@ export default function TweetCard({ tweet, isModal = false }) {
     </article>
   );
 }
+
+export default React.memo(TweetCard, (prev, next) => {
+  const prevId = prev.tweet.id || prev.tweet.id_str || prev.tweet.rest_id;
+  const nextId = next.tweet.id || next.tweet.id_str || next.tweet.rest_id;
+  return prevId === nextId && prev.isModal === next.isModal;
+});
