@@ -256,6 +256,7 @@ export default function App() {
 
   const handleDrag = function(e) {
     e.preventDefault(); e.stopPropagation();
+    if (!e.dataTransfer?.types || !Array.from(e.dataTransfer.types).includes("Files")) return;
     if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
     else if (e.type === "dragleave") setDragActive(false);
   };

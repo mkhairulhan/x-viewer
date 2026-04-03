@@ -254,7 +254,7 @@ const TweetCard = ({ tweet, isModal = false }) => {
               const thumbUrl = mediaItem.thumbnail || mediaItem.media_url_https || mediaItem.url;
               let containerClass = "relative flex items-center justify-center bg-gray-900 overflow-hidden w-full h-full min-h-[150px]";
               let mediaClass = `w-full ${tweet.media.length === 1 ? "object-contain max-h-[400px] sm:max-h-[500px]" : "h-full object-cover"}`;
-              if (tweet.media.length >= 3 && index === 0) containerClass += " row-span-2";
+              if (tweet.media.length === 3 && index === 0) containerClass += " row-span-2";
 
               return (
                 <div key={index} className={containerClass}>
