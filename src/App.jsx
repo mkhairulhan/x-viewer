@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Fuse from 'fuse.js';
 import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
+import { Masonry } from 'masonic';
 
 import { loadFromDB, clearDB, loadBookmarksFromDB, saveBookmarksToDB } from './lib/db';
 import { normalizeTweet } from './lib/normalizer';
@@ -740,23 +741,13 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="w-full">
-                       <div className="columns-2 md:columns-3 lg:columns-4 gap-4 w-full">
-                          {processedBookmarks
-                            .filter(t => t.media && t.media.length > 0)
-                            .slice(0, galleryLimit)
-                            .map(tweet => (
-                             <div key={tweet.id} className="break-inside-avoid mb-4">
-                               <TweetCard tweet={tweet} />
-                             </div>
-                          ))}
-                       </div>
-                       
-                       {/* Infinite Scroll Loader Anchor */}
-                       {processedBookmarks.filter(t => t.media && t.media.length > 0).length > galleryLimit && (
-                         <div ref={galleryLoaderRef} className="py-10 flex items-center justify-center w-full">
-                           <Loader2 className="w-8 h-8 animate-spin text-brand-blue opacity-50" />
-                         </div>
-                       )}
+                       <Masonry
+                         items={processedBookmarks.filter(t => t.media && t.media.length > 0)}
+                         columnGutter={16}
+                         columnWidth={280}
+                         overscanBy={3}
+                         render={({ data }) => <TweetCard tweet={data} />}
+                       />
                     </div>
                   )
                 )}
