@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Fuse from 'fuse.js';
 import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
+import { Masonry } from 'masonic';
 
 import { loadFromDB, clearDB, loadBookmarksFromDB, saveBookmarksToDB } from './lib/db';
 import { normalizeTweet } from './lib/normalizer';
@@ -16,6 +17,7 @@ import Insights from './components/dashboard/Insights';
 import Settings from './components/dashboard/Settings';
 import KeyboardShortcuts from './components/layout/KeyboardShortcuts';
 import { useStore } from './store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
@@ -28,11 +30,54 @@ export default function App() {
     setIsMobileMenuOpen, setIsShortcutsOpen, setSearchTerm, setViewMode, setFilterMedia,
     setSortBy, toggleDarkMode, setSelectedTweet, setLightbox, setIsSelectionMode,
     setSelectedIds, toggleSelection, setIsScanning, setScanProgress, clearWorkspace
-  } = useStore();
+  } = useStore(useShallow(state => ({
+    bookmarks: state.bookmarks, 
+    brokenMediaIds: state.brokenMediaIds, 
+    notes: state.notes, 
+    customTags: state.customTags, 
+    loading: state.loading, 
+    error: state.error, 
+    currentView: state.currentView, 
+    isMobileMenuOpen: state.isMobileMenuOpen,
+    searchTerm: state.searchTerm, 
+    viewMode: state.viewMode, 
+    filterMedia: state.filterMedia, 
+    sortBy: state.sortBy, 
+    isDarkMode: state.isDarkMode, 
+    selectedTweet: state.selectedTweet, 
+    lightbox: state.lightbox,
+    isSelectionMode: state.isSelectionMode, 
+    selectedIds: state.selectedIds, 
+    isScanning: state.isScanning, 
+    scanProgress: state.scanProgress,
+    setBookmarks: state.setBookmarks, 
+    setBrokenMediaIds: state.setBrokenMediaIds, 
+    setNotes: state.setNotes, 
+    setCustomTags: state.setCustomTags, 
+    setLoading: state.setLoading, 
+    setError: state.setError, 
+    setCurrentView: state.setCurrentView,
+    setIsMobileMenuOpen: state.setIsMobileMenuOpen, 
+    setIsShortcutsOpen: state.setIsShortcutsOpen, 
+    setSearchTerm: state.setSearchTerm, 
+    setViewMode: state.setViewMode, 
+    setFilterMedia: state.setFilterMedia,
+    setSortBy: state.setSortBy, 
+    toggleDarkMode: state.toggleDarkMode, 
+    setSelectedTweet: state.setSelectedTweet, 
+    setLightbox: state.setLightbox, 
+    setIsSelectionMode: state.setIsSelectionMode,
+    setSelectedIds: state.setSelectedIds, 
+    toggleSelection: state.toggleSelection, 
+    setIsScanning: state.setIsScanning, 
+    setScanProgress: state.setScanProgress, 
+    clearWorkspace: state.clearWorkspace
+  })));
 
   const [dragActive, setDragActive] = useState(false);
   const searchInputRef = useRef(null);
   const scanAbortController = useRef(null);
+  const ingestWorkerRef = useRef(null);
   
   const [analytics, setAnalytics] = useState(null);
   const [parsingMessage, setParsingMessage] = useState('');
@@ -59,17 +104,31 @@ export default function App() {
   // PHASE 7 FIX: Background Scroll Lock for Modals
   useEffect(() => {
     if (selectedTweet || lightbox) {
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('overflow-hidden');
     } else {
-      document.body.style.overflow = '';
+      document.body.classList.remove('overflow-hidden');
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => { document.body.classList.remove('overflow-hidden'); };
   }, [selectedTweet, lightbox]);
 
   // Reset Gallery limit when changing filters
   useEffect(() => {
     setGalleryLimit(50);
   }, [searchTerm, filterMedia, sortBy, viewMode]);
+
+  // Global cleanup for background processes on unmount
+  useEffect(() => {
+    return () => {
+      if (scanAbortController.current) {
+        scanAbortController.current.abort();
+        scanAbortController.current = null;
+      }
+      if (ingestWorkerRef.current) {
+        ingestWorkerRef.current.terminate();
+        ingestWorkerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -134,7 +193,12 @@ export default function App() {
     setError(null);
     setParsingMessage('Initializing background worker...');
 
+    if (ingestWorkerRef.current) {
+      ingestWorkerRef.current.terminate();
+    }
+
     const worker = new Worker(new URL('./workers/ingest.worker.js', import.meta.url), { type: 'module' });
+    ingestWorkerRef.current = worker;
     
     worker.onmessage = (e) => {
       if (e.data.type === 'progress') {
@@ -164,11 +228,13 @@ export default function App() {
         setLoading(false);
         setParsingMessage('');
         worker.terminate();
+        if (ingestWorkerRef.current === worker) ingestWorkerRef.current = null;
       } else if (e.data.type === 'error') {
         setError(e.data.payload);
         setLoading(false);
         setParsingMessage('');
         worker.terminate();
+        if (ingestWorkerRef.current === worker) ingestWorkerRef.current = null;
       }
     };
 
@@ -177,6 +243,7 @@ export default function App() {
       setLoading(false);
       setParsingMessage('');
       worker.terminate();
+      if (ingestWorkerRef.current === worker) ingestWorkerRef.current = null;
     };
 
     worker.postMessage({ files, existingBookmarks: bookmarks, existingNotes: notes, existingTags: customTags });
@@ -189,6 +256,7 @@ export default function App() {
 
   const handleDrag = function(e) {
     e.preventDefault(); e.stopPropagation();
+    if (!e.dataTransfer?.types || !Array.from(e.dataTransfer.types).includes("Files")) return;
     if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
     else if (e.type === "dragleave") setDragActive(false);
   };
@@ -674,23 +742,13 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="w-full">
-                       <div className="columns-2 md:columns-3 lg:columns-4 gap-4 w-full">
-                          {processedBookmarks
-                            .filter(t => t.media && t.media.length > 0)
-                            .slice(0, galleryLimit)
-                            .map(tweet => (
-                             <div key={tweet.id} className="break-inside-avoid mb-4">
-                               <TweetCard tweet={tweet} />
-                             </div>
-                          ))}
-                       </div>
-                       
-                       {/* Infinite Scroll Loader Anchor */}
-                       {processedBookmarks.filter(t => t.media && t.media.length > 0).length > galleryLimit && (
-                         <div ref={galleryLoaderRef} className="py-10 flex items-center justify-center w-full">
-                           <Loader2 className="w-8 h-8 animate-spin text-brand-blue opacity-50" />
-                         </div>
-                       )}
+                       <Masonry
+                         items={processedBookmarks.filter(t => t.media && t.media.length > 0)}
+                         columnGutter={16}
+                         columnWidth={280}
+                         overscanBy={3}
+                         render={({ data }) => <TweetCard tweet={data} />}
+                       />
                     </div>
                   )
                 )}
@@ -703,7 +761,7 @@ export default function App() {
         {/* Detail Modal Overlay */}
         {selectedTweet && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-0 sm:p-4 md:p-8 bg-black/80 dark:bg-black/95 backdrop-blur-sm" onClick={() => setSelectedTweet(null)}>
-            <button onClick={() => setSelectedTweet(null)} className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 z-[80] p-2 sm:p-2.5 bg-black/50 hover:bg-black/70 sm:bg-white/10 sm:hover:bg-white/20 text-white rounded-full backdrop-blur-md shadow-lg border border-white/20"><X className="w-6 h-6" /></button>
+            <button onClick={() => setSelectedTweet(null)} className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 z-[80] p-3 bg-black/50 hover:bg-black/70 sm:bg-white/10 sm:hover:bg-white/20 text-white rounded-full backdrop-blur-md shadow-lg border border-white/20 transition-colors"><X className="w-6 h-6" /></button>
             <div className="relative w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 sm:rounded-2xl shadow-2xl shadow-black/50 border border-slate-700 [&::-webkit-scrollbar]:hidden" onClick={(e) => e.stopPropagation()}>
               <div className="h-14 sm:hidden bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 flex items-center px-4"><span className="font-bold text-slate-900 dark:text-slate-50">Tweet Details</span></div>
               <div className="p-0 sm:p-2">
@@ -716,9 +774,9 @@ export default function App() {
         {/* Lightbox Overlay */}
         {lightbox && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl" onClick={() => setLightbox(null)}>
-            <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 z-10 p-2 bg-white/10 text-white rounded-full shadow-lg"><X className="w-6 h-6" /></button>
-            {lightbox.index > 0 && <button onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, index: lightbox.index - 1 }) }} className="absolute left-2 md:left-8 z-10 p-2 bg-white/10 text-white rounded-full"><ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" /></button>}
-            {lightbox.index < lightbox.items.length - 1 && <button onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, index: lightbox.index + 1 }) }} className="absolute right-2 md:right-8 z-10 p-2 bg-white/10 text-white rounded-full"><ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" /></button>}
+            <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 z-10 p-3 bg-white/10 hover:bg-white/20 transition-colors text-white rounded-full shadow-lg"><X className="w-6 h-6" /></button>
+            {lightbox.index > 0 && <button onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, index: lightbox.index - 1 }) }} className="absolute left-2 sm:left-6 md:left-8 z-10 p-3 bg-white/10 hover:bg-white/20 transition-colors text-white rounded-full backdrop-blur-md"><ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" /></button>}
+            {lightbox.index < lightbox.items.length - 1 && <button onClick={(e) => { e.stopPropagation(); setLightbox({ ...lightbox, index: lightbox.index + 1 }) }} className="absolute right-2 sm:right-6 md:right-8 z-10 p-3 bg-white/10 hover:bg-white/20 transition-colors text-white rounded-full backdrop-blur-md"><ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" /></button>}
             
             <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-20" onClick={() => setLightbox(null)}>
               {(() => {
