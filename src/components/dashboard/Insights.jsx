@@ -8,6 +8,7 @@ import {
   Smartphone, Languages, Globe, Info, History, BadgeCheck, Sparkles
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { ActivityCalendar } from 'react-activity-calendar';
 import { formatNum, formatTimeLatency, langMap } from '../../lib/utils.js';
 import { useStore } from '../../store/useStore';
 
@@ -53,6 +54,10 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
   const setCurrentView = useStore(state => state.setCurrentView);
   const setIsMobileMenuOpen = useStore(state => state.setIsMobileMenuOpen);
   const isDarkMode = useStore(state => state.isDarkMode);
+
+  const [selectedYear, setSelectedYear] = React.useState(
+    Object.keys(analytics?.yearlyActivity || {}).sort().pop() || new Date().getFullYear().toString()
+  );
 
   if (!analytics) return null;
 
@@ -413,6 +418,48 @@ export default function Insights({ analytics, counts, runHealthScan, stopHealthS
           </div>
         </div>
 
+      </div>
+
+      {/* Activity Heatmap */}
+      <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 w-full mb-6 relative">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+           <h3 className="text-lg font-bold flex items-center gap-2 text-slate-900 dark:text-slate-50 w-full">
+             <Activity className="w-5 h-5 text-emerald-500"/> Activity Heatmap
+           </h3>
+           <select 
+             value={selectedYear} 
+             onChange={(e) => setSelectedYear(e.target.value)}
+             className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 rounded-lg px-3 py-1.5 text-sm w-full sm:w-auto outline-none focus:ring-2 focus:ring-emerald-500"
+           >
+             {Object.keys(analytics?.yearlyActivity || {}).sort().reverse().map(y => (
+               <option key={y} value={y}>{y}</option>
+             ))}
+           </select>
+        </div>
+        <div className="overflow-x-auto pb-4 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
+           {analytics?.yearlyActivity && analytics.yearlyActivity[selectedYear] ? (
+              <ActivityCalendar 
+                 data={analytics.yearlyActivity[selectedYear]} 
+                 theme={{
+                    light: ['#f1f5f9', '#a7f3d0', '#6ee7b7', '#34d399', '#10b981'],
+                    dark: ['#1e293b', '#065f46', '#047857', '#059669', '#10b981']
+                 }}
+                 colorScheme={isDarkMode ? "dark" : "light"}
+                 labels={{
+                   legend: {
+                     less: 'Less',
+                     more: 'More'
+                   },
+                   totalCount: '{{count}} bookmarks in {{year}}',
+                 }}
+                 blockMargin={4}
+                 blockSize={12}
+                 fontSize={12}
+              />
+           ) : (
+              <EmptyMetadataState />
+           )}
+        </div>
       </div>
 
       {/* ROW 5: Sources & Languages (Bar Charts) */}

@@ -28,6 +28,7 @@ self.onmessage = (e) => {
     let powerUsers = [];
     let followerRatios = [];
     let oldestBookmarks = [];
+    let yearlyActivityCounts = {};
     
     let totalUsersAnalyzed = 0;
     let verifiedCount = 0;
@@ -48,6 +49,14 @@ self.onmessage = (e) => {
 
       if (created_at) {
           oldestBookmarks.push(b);
+          
+          const d = new Date(created_at);
+          if (!isNaN(d.getTime())) {
+             const year = d.getFullYear().toString();
+             const dateStr = d.toISOString().split('T')[0];
+             yearlyActivityCounts[year] = yearlyActivityCounts[year] || {};
+             yearlyActivityCounts[year][dateStr] = (yearlyActivityCounts[year][dateStr] || 0) + 1;
+          }
       }
 
       // 2. User Level Metrics (deduplicated by handle)
@@ -142,6 +151,23 @@ self.onmessage = (e) => {
       powerUsers: powerUsers.sort((a,b) => b.tpDay - a.tpDay).slice(0, 5),
       topInfluencers: followerRatios.sort((a,b) => b.ratio - a.ratio).slice(0, 5),
       
+      yearlyActivity: (() => {
+        const getLevel = (count) => {
+            if (count === 0) return 0;
+            if (count <= 2) return 1;
+            if (count <= 5) return 2;
+            if (count <= 9) return 3;
+            return 4;
+        };
+        const res = {};
+        for (const [year, days] of Object.entries(yearlyActivityCounts)) {
+            res[year] = Object.entries(days).map(([date, count]) => ({
+                date, count, level: getLevel(count)
+            })).sort((a, b) => a.date.localeCompare(b.date));
+        }
+        return res;
+      })(),
+
       stats: { totalUsersAnalyzed },
       verificationStats: { verified: verifiedCount, unverified: unverifiedCount }
     };
